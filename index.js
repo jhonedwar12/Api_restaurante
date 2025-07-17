@@ -14,7 +14,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964"; // Token para proteger la
 function asegurarEstadoInicial() {
   if (!fs.existsSync(ESTADO_PATH)) {
     console.log("estado.json no existe. Creando con estado inhabilitado.");
-    guardarEstado(false);
+    guardarEstado(true);
   }
 }
 
