@@ -10,7 +10,7 @@ app.use(express.json());
 const ESTADO_PATH = "./estado.json";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964"; // Token para proteger la ruta POST
 
-// Si no existe el archivo, lo crea con estado INHABILITADO (false)
+// Si no existe el archivo, lo crea con estado INHABILITADO (true)
 function asegurarEstadoInicial() {
   if (!fs.existsSync(ESTADO_PATH)) {
     console.log("estado.json no existe. Creando con estado inhabilitado.");
@@ -51,11 +51,35 @@ function guardarEstado(habilitado) {
 // Inicializar estado
 asegurarEstadoInicial();
 
+// Determina si la hora actual está dentro del horario automático
+function enHorarioDePedidos() {
+  const ahora = new Date();
+  const hora = ahora.getHours();
+  return hora >= 10 && hora < 17; // entre 10:00AM y 5:00 PM
+}
+
 // Ruta pública (consulta)
 app.get("/api/pedidos-habilitados", (req, res) => {
-  const estado = leerEstado();
-  res.json({ pedidosHabilitados: estado });
+  const enHorario = enHorarioDePedidos();
+  const estadoActual = leerEstado();
+
+  if (enHorario && estadoActual === false) {
+    // Si estamos en horario y está deshabilitado, lo habilitamos automáticamente
+    guardarEstado(true);
+    return res.json({ pedidosHabilitados: true });
+  }
+
+  if (!enHorario && estadoActual === true) {
+    // Si estamos fuera de horario y está habilitado, lo deshabilitamos automáticamente
+    guardarEstado(false);
+    return res.json({ pedidosHabilitados: false });
+  }
+
+  // Si ya está correcto, solo devolvemos el estado sin modificarlo
+  return res.json({ pedidosHabilitados: estadoActual });
 });
+
+
 
 // Ruta protegida (cambio)
 app.post("/api/pedidos-habilitados", (req, res) => {
