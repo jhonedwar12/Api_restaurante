@@ -13,8 +13,8 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964";
 // Crear archivo inicial si no existe
 function asegurarEstadoInicial() {
   if (!fs.existsSync(ESTADO_PATH)) {
-    console.log("estado.json no existe. Creando con estado inhabilitado.");
-    guardarEstado(false, null);
+    console.log("estado.json no existe. Creando con estado habilitado.");
+    guardarEstado(true, null);
   }
 }
 
@@ -61,8 +61,8 @@ function guardarEstado(habilitado, esManual = false) {
 // Determinar si estamos en horario de pedidos automáticos
 function enHorarioDePedidos() {
   const ahora = new Date();
-  const hora = ahora.getHours();
-  return hora >= 10 && hora < 17; // Entre 10 AM y 5 PM
+  const hora = ahora.getHours() + ahora.getMinutes() / 60;
+  return hora >= 10.3 && hora < 16.5; // Entre 10:18 AM y 4:30 PM
 }
 
 // Inicializar
