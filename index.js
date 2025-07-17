@@ -1,87 +1,98 @@
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
-require("dotenv").config(); // Para manejar variables de entorno
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const ESTADO_PATH = "./estado.json";
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964"; // Token para proteger la ruta POST
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964";
 
-// Si no existe el archivo, lo crea con estado INHABILITADO (true)
+// Crear archivo inicial si no existe
 function asegurarEstadoInicial() {
   if (!fs.existsSync(ESTADO_PATH)) {
     console.log("estado.json no existe. Creando con estado inhabilitado.");
-    guardarEstado(true);
+    guardarEstado(false, null);
   }
 }
 
-// Leer el estado actual
-function leerEstado() {
+// Leer el estado completo
+function leerEstadoCompleto() {
   try {
     const data = fs.readFileSync(ESTADO_PATH, "utf-8");
     const parsed = JSON.parse(data);
-    if (typeof parsed.pedidosHabilitados === "boolean") {
-      return parsed.pedidosHabilitados;
-    } else {
-      console.warn("El archivo no tiene un valor booleano válido. Usando false.");
-      return false;
-    }
+    return {
+      pedidosHabilitados: !!parsed.pedidosHabilitados,
+      ultimoCambioManual: parsed.ultimoCambioManual || null,
+    };
   } catch (error) {
     console.error("Error leyendo estado.json:", error);
-    return false;
+    return {
+      pedidosHabilitados: false,
+      ultimoCambioManual: null,
+    };
   }
 }
 
-// Guardar nuevo estado
-function guardarEstado(habilitado) {
+// Guardar el estado con opción de marcar cambio manual
+function guardarEstado(habilitado, esManual = false) {
+  const estado = {
+    pedidosHabilitados: habilitado,
+  };
+
+  if (esManual) {
+    const hoy = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    estado.ultimoCambioManual = hoy;
+  } else {
+    const actual = leerEstadoCompleto();
+    estado.ultimoCambioManual = actual.ultimoCambioManual || null;
+  }
+
   try {
-    fs.writeFileSync(
-      ESTADO_PATH,
-      JSON.stringify({ pedidosHabilitados: habilitado }, null, 2)
-    );
-    console.log("Estado guardado:", habilitado);
+    fs.writeFileSync(ESTADO_PATH, JSON.stringify(estado, null, 2));
+    console.log("Estado guardado:", estado);
   } catch (err) {
     console.error("Error al guardar estado:", err);
   }
 }
 
-// Inicializar estado
-asegurarEstadoInicial();
-
-// Determina si la hora actual está dentro del horario automático
+// Determinar si estamos en horario de pedidos automáticos
 function enHorarioDePedidos() {
   const ahora = new Date();
   const hora = ahora.getHours();
-  return hora >= 10 && hora < 17; // entre 10:00AM y 5:00 PM
+  return hora >= 10 && hora < 17; // Entre 10 AM y 5 PM
 }
+
+// Inicializar
+asegurarEstadoInicial();
 
 // Ruta pública (consulta)
 app.get("/api/pedidos-habilitados", (req, res) => {
+  const { pedidosHabilitados, ultimoCambioManual } = leerEstadoCompleto();
+
+  const hoy = new Date().toISOString().split("T")[0];
   const enHorario = enHorarioDePedidos();
-  const estadoActual = leerEstado();
 
-  if (enHorario && estadoActual === false) {
-    // Si estamos en horario y está deshabilitado, lo habilitamos automáticamente
-    guardarEstado(true);
-    return res.json({ pedidosHabilitados: true });
+  // Solo aplicar lógica automática si no hubo cambio manual hoy
+  if (ultimoCambioManual !== hoy) {
+    if (enHorario && !pedidosHabilitados) {
+      guardarEstado(true); // Habilitar automáticamente
+      return res.json({ pedidosHabilitados: true });
+    }
+
+    if (!enHorario && pedidosHabilitados) {
+      guardarEstado(false); // Deshabilitar automáticamente
+      return res.json({ pedidosHabilitados: false });
+    }
   }
 
-  if (!enHorario && estadoActual === true) {
-    // Si estamos fuera de horario y está habilitado, lo deshabilitamos automáticamente
-    guardarEstado(false);
-    return res.json({ pedidosHabilitados: false });
-  }
-
-  // Si ya está correcto, solo devolvemos el estado sin modificarlo
-  return res.json({ pedidosHabilitados: estadoActual });
+  // Si hubo cambio manual hoy, respetarlo
+  return res.json({ pedidosHabilitados });
 });
 
-
-
-// Ruta protegida (cambio)
+// Ruta protegida (POST) para habilitar/deshabilitar manualmente
 app.post("/api/pedidos-habilitados", (req, res) => {
   const token = req.headers.authorization?.split("Bearer ")[1];
   if (token !== ADMIN_TOKEN) {
@@ -91,10 +102,10 @@ app.post("/api/pedidos-habilitados", (req, res) => {
 
   const { habilitado } = req.body;
   if (typeof habilitado === "boolean") {
-    guardarEstado(habilitado);
-    res.json({ success: true, pedidosHabilitados: habilitado });
+    guardarEstado(habilitado, true); // cambio manual
+    return res.json({ success: true, pedidosHabilitados: habilitado });
   } else {
-    res.status(400).json({ success: false, message: "Valor inválido" });
+    return res.status(400).json({ success: false, message: "Valor inválido" });
   }
 });
 
