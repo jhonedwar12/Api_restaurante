@@ -21,7 +21,7 @@ function leerEstadoCompleto() {
   } catch (error) {
     console.error("Error leyendo estado.json:", error);
     return {
-      pedidosHabilitados: false,
+      pedidosHabilitados: true,
       ultimoCambioManual: null,
     };
   }

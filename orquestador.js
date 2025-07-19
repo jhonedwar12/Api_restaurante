@@ -31,6 +31,8 @@ router.get("/api/pedidos-habilitados", (req, res) => {
     }
   }
 
+  
+
   return res.json({ pedidosHabilitados });
 });
 
