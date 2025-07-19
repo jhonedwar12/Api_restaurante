@@ -6,9 +6,17 @@ const ESTADO_PATH = "./estado.json";
 function asegurarEstadoInicial() {
   if (!fs.existsSync(ESTADO_PATH)) {
     console.log("estado.json no existe. Creando con estado habilitado.");
-    guardarEstado(true, null);
+    guardarEstado(true, false); // inicia en true sin marcar cambio manual
+  } else {
+    // Forzar el valor a true al iniciar (solo si ya existe)
+    const estado = leerEstadoCompleto();
+    if (!estado.pedidosHabilitados) {
+      guardarEstado(true, false);
+      console.log("✅ Estado forzado a habilitado al iniciar.");
+    }
   }
 }
+
 
 function leerEstadoCompleto() {
   try {
