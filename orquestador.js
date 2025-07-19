@@ -21,17 +21,19 @@ router.get("/api/pedidos-habilitados", (req, res) => {
   const enHorario = enHorarioDePedidos();
 
   if (ultimoCambioManual !== hoy) {
-    if (enHorario && !pedidosHabilitados) {
-      guardarEstado(true);
-      return res.json({ pedidosHabilitados: true });
-    }
-    if (!enHorario && pedidosHabilitados) {
-      guardarEstado(false);
-      return res.json({ pedidosHabilitados: false });
-    }
+  if (enHorario && !pedidosHabilitados) {
+    guardarEstado(true);
+    return res.json({ pedidosHabilitados: true });
   }
+  if (!enHorario && pedidosHabilitados && ultimoCambioManual !== null) {
+    // 🛑 solo apaga si hay un cambio manual registrado
+    guardarEstado(false);
+    return res.json({ pedidosHabilitados: false });
+  }
+}
 
-  
+
+
 
   return res.json({ pedidosHabilitados });
 });
