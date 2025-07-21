@@ -4,8 +4,8 @@ require("dotenv").config();
 const {
   leerEstadoCompleto,
   guardarEstado,
-  asegurarEstadoInicial,
   enHorarioDePedidos,
+  diasSinTocar
 } = require("./servicioEstado");
 
 const router = express.Router();
@@ -14,22 +14,23 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964";
 
 router.get("/api/pedidos-habilitados", (req, res) => {
   const { pedidosHabilitados, ultimoCambioManual } = leerEstadoCompleto();
-  const hoy = new Date().toISOString().split("T")[0];
-  const enHorario = enHorarioDePedidos();
+  const enHorario = enHorarioDePedidos(ultimoCambioManual);
 
 
-  const sePuedeActualizar = ultimoCambioManual !== hoy;
-
-  if (sePuedeActualizar) {
-    if (enHorario && !pedidosHabilitados) {
-      guardarEstado(true);
-      console.log("Encendido automático por estar en horario");
-      return res.json({ pedidosHabilitados: true });
-    }
-
+  if (diasSinTocar(ultimoCambioManual)) {
+  if (enHorario && !pedidosHabilitados) {
+    guardarEstado(true);
+    console.log("Encendido automático por horario y días sin cambio manual reciente");
+    return res.json({ pedidosHabilitados: true });
   }
 
-  // Retorna el estado actual sin cambios
+  if (!enHorario && pedidosHabilitados) {
+    guardarEstado(false);
+    console.log("Apagado automático por estar fuera de horario y días sin cambio manual reciente");
+    return res.json({ pedidosHabilitados: false });
+  }
+}
+
   return res.json({ pedidosHabilitados });
 });
 

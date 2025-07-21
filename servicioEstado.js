@@ -16,16 +16,23 @@ function asegurarEstadoInicial() {
     }
   }
 }
+/// dias sin tocar 
+const diasSinTocar = (ultimoCambioManual) => {
+  if (!ultimoCambioManual) return true;
+  
+  const hoy = new Date();
+  const fechaManual = new Date(ultimoCambioManual);
+  
+  const diferenciaEnDias = Math.floor((hoy - fechaManual) / (1000 * 60 * 60 * 24));
+  return diferenciaEnDias >= 1 && diferenciaEnDias <= 3;
+};
+
 
 //funcion para apagar el servicio si el boton fue cambiado en el dia
 function asegurarApagadoAutomatico() {
-  const { ultimoCambioManual } = leerEstadoCompleto();
-  const hoy = new Date().toISOString().split("T")[0];
 
-  if (ultimoCambioManual === hoy) {
-    console.log("Apagado automático por cambio manual hoy.");
     guardarEstado(false);
-  }
+    console.log("✅ Estado apagado automáticamente fuera de horario.");
 }
 
 
@@ -53,7 +60,7 @@ function guardarEstado(habilitado, esManual = false) {
   };
 
   if (esManual) {
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = new Date().toISOString();
     estado.ultimoCambioManual = hoy;
   } else {
     const actual = leerEstadoCompleto();
@@ -68,20 +75,32 @@ function guardarEstado(habilitado, esManual = false) {
   }
 }
 
-function enHorarioDePedidos() {
+function enHorarioDePedidos(ultimoCambioManual) {
   const ahora = new Date();
-  const hora = ahora.getHours() + ahora.getMinutes() / 60;
+  const horaActual = ahora.getHours() + ahora.getMinutes() / 60;
+  const hoy = ahora.toISOString().split("T")[0];
 
-if (hora < 10.3 || hora >= 16.5) {
-    asegurarApagadoAutomatico();
+  const fueraHorario = horaActual < 10.3 || horaActual >= 16.5;
+  const huboCambioHoy = ultimoCambioManual?.startsWith?.(hoy);
+
+  if (fueraHorario && huboCambioHoy) {
+    const horaDelCambio = new Date(ultimoCambioManual).getHours() + new Date(ultimoCambioManual).getMinutes() / 60;
+
+    if (horaDelCambio >= 10.5 && horaDelCambio < 16.5) {
+      console.log("Cambio manual válido hoy, pero ya fuera de horario. Apagando automáticamente.");
+      asegurarApagadoAutomatico();
+    }
   }
   asegurarEstadoInicial();
-  return hora >= 10.3 && hora < 16.5;
+
+  return horaActual >= 10.3 && horaActual < 16.5;
 }
+
 
 module.exports = {
   asegurarEstadoInicial,
   leerEstadoCompleto,
   guardarEstado,
   enHorarioDePedidos,
+  diasSinTocar
 };
