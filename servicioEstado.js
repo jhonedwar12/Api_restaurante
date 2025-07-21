@@ -17,6 +17,18 @@ function asegurarEstadoInicial() {
   }
 }
 
+//funcion para apagar el servicio si el boton fue cambiado en el dia
+function asegurarApagadoAutomatico() {
+  const { ultimoCambioManual } = leerEstadoCompleto();
+  const hoy = new Date().toISOString().split("T")[0];
+
+  if (ultimoCambioManual === hoy) {
+    console.log("Apagado automático por cambio manual hoy.");
+    guardarEstado(false);
+  }
+}
+
+
 
 function leerEstadoCompleto() {
   try {
@@ -59,6 +71,11 @@ function guardarEstado(habilitado, esManual = false) {
 function enHorarioDePedidos() {
   const ahora = new Date();
   const hora = ahora.getHours() + ahora.getMinutes() / 60;
+
+if (hora < 10.3 || hora >= 16.5) {
+    asegurarApagadoAutomatico();
+  }
+  asegurarEstadoInicial();
   return hora >= 10.3 && hora < 16.5;
 }
 

@@ -11,30 +11,25 @@ const {
 const router = express.Router();
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "5964";
 
-// Inicializar estado
-asegurarEstadoInicial();
 
-// Ruta pública para consultar el estado
 router.get("/api/pedidos-habilitados", (req, res) => {
   const { pedidosHabilitados, ultimoCambioManual } = leerEstadoCompleto();
   const hoy = new Date().toISOString().split("T")[0];
   const enHorario = enHorarioDePedidos();
 
-  if (ultimoCambioManual !== hoy) {
-  if (enHorario && !pedidosHabilitados) {
-    guardarEstado(true);
-    return res.json({ pedidosHabilitados: true });
+
+  const sePuedeActualizar = ultimoCambioManual !== hoy;
+
+  if (sePuedeActualizar) {
+    if (enHorario && !pedidosHabilitados) {
+      guardarEstado(true);
+      console.log("Encendido automático por estar en horario");
+      return res.json({ pedidosHabilitados: true });
+    }
+
   }
-  if (!enHorario && pedidosHabilitados && ultimoCambioManual !== null) {
-    // 🛑 solo apaga si hay un cambio manual registrado
-    guardarEstado(false);
-    return res.json({ pedidosHabilitados: false });
-  }
-}
 
-
-
-
+  // Retorna el estado actual sin cambios
   return res.json({ pedidosHabilitados });
 });
 
